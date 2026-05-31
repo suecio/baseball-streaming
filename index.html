@@ -14,13 +14,12 @@
     
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-blue-500 selection:text-white">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // Catch crashes instead of showing a black screen
         class ErrorBoundary extends React.Component {
             constructor(props) {
                 super(props);
@@ -41,6 +40,28 @@
             }
         }
 
+        const CustomModal = ({ isOpen, title, message, onConfirm, onCancel, type }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
+                        <h3 className={`text-xl font-bold mb-2 ${type === 'danger' ? 'text-red-500' : 'text-white'}`}>{title}</h3>
+                        <p className="text-slate-400 mb-6">{message}</p>
+                        <div className="flex justify-end gap-3">
+                            {onCancel && (
+                                <button onClick={onCancel} className="px-4 py-2 rounded-lg font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+                                    Cancel
+                                </button>
+                            )}
+                            <button onClick={onConfirm} className={`px-4 py-2 rounded-lg font-bold text-white transition-colors shadow-lg ${type === 'danger' ? 'bg-red-600 hover:bg-red-500 shadow-red-900/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'}`}>
+                                {type === 'danger' ? 'Delete' : 'OK'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const HlsVideoPlayer = ({ src }) => {
             const videoRef = useRef(null);
             
@@ -60,6 +81,224 @@
                         });
                     }
                 }
+                return () => { if (hls) hls.destroy(); };
+            }, [src]);
+
+            return (
+                <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-800">
+                    <video ref={videoRef} controls className="w-full h-full object-contain" playsInline />
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('live');
+            const [matches, setMatches] = useState([]);
+            const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info', onConfirm: () => {}, onCancel: null });
+            const [formData, setFormData] = useState({
+                title: '', teamHome: '', teamAway: '', date: new Date().toISOString().split('T')[0], status: 'live', streamUrl: 'https://stream.deportes.se/live_stream/index.m3u8'
+            });
+
+            useEffect(() => {
+                try {
+                    const saved = localStorage.getItem('wbsc_portal_data_v3');
+                    if (saved) {
+                        setMatches(JSON.parse(saved));
+                    } else {
+                        const defaultMatch = {
+                            id: Date.now().toString(),
+                            title: "European Cup Baseball",
+                            teamHome: "Home Team",
+                            teamAway: "Away Team",
+                            date: new Date().toISOString().split('T')[0],
+                            status: "live",
+                            streamUrl: "https://stream.deportes.se/live_stream/index.m3u8"
+                        };
+                        setMatches([defaultMatch]);
+                        localStorage.setItem('wbsc_portal_data_v3', JSON.stringify([defaultMatch]));
+                    }
+                } catch (e) {
+                    console.error("Local storage error:", e);
+                }
+            }, []);
+
+            const handleSaveMatch = (e) => {
+                e.preventDefault();
+                const newMatch = { ...formData, id: Date.now().toString() };
+                
+                let updatedMatches = [...matches];
+                if (newMatch.status === 'live') {
+                    // Turn other live matches to archived
+                    updatedMatches = updatedMatches.map(m => m.status === 'live' ? { ...m, status: 'archived' } : m);
+                }
+                
+                const finalMatches = [newMatch, ...updatedMatches];
+                setMatches(finalMatches);
+                localStorage.setItem('wbsc_portal_data_v3', JSON.stringify(finalMatches));
+                setFormData({ ...formData, title: '', teamHome: '', teamAway: '' });
+                
+                // Show success modal
+                setModalConfig({
+                    isOpen: true,
+                    title: 'Success',
+                    message: 'Match has been saved successfully.',
+                    type: 'info',
+                    onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
+                    onCancel: null
+                });
+            };
+
+            const handleDeleteRequest = (id) => {
+                setModalConfig({
+                    isOpen: true,
+                    title: 'Delete Match',
+                    message: 'Are you sure you want to permanently delete this match from the database?',
+                    type: 'danger',
+                    onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
+                    onConfirm: () => {
+                        const updated = matches.filter(m => m.id !== id);
+                        setMatches(updated);
+                        localStorage.setItem('wbsc_portal_data_v3', JSON.stringify(updated));
+                        setModalConfig(prev => ({ ...prev, isOpen: false }));
+                    }
+                });
+            };
+
+            const currentMatch = activeTab === 'live' ? matches.find(m => m.status === 'live') : null;
+            const archivedMatches = matches.filter(m => m.status === 'archived');
+
+            return (
+                <div className="max-w-6xl mx-auto px-4 py-8">
+                    <CustomModal {...modalConfig} />
+                    
+                    <nav className="flex flex-col md:flex-row justify-between items-center bg-slate-900 border border-slate-800 p-4 rounded-2xl mb-8 shadow-xl">
+                        <div className="flex items-center gap-3 mb-4 md:mb-0">
+                            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold text-xl shadow-lg shadow-blue-500/50">B</div>
+                            <h1 className="text-2xl font-black tracking-tight text-white">WBSC Europe TV</h1>
+                        </div>
+                        <div className="flex gap-2 bg-slate-950 p-1 rounded-xl">
+                            <button onClick={() => setActiveTab('live')} className={`px-5 py-2 rounded-lg font-bold transition-all ${activeTab === 'live' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>Live Now</button>
+                            <button onClick={() => setActiveTab('archive')} className={`px-5 py-2 rounded-lg font-bold transition-all ${activeTab === 'archive' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>Archive</button>
+                            <button onClick={() => setActiveTab('admin')} className={`px-5 py-2 rounded-lg font-bold transition-all ${activeTab === 'admin' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>Admin</button>
+                        </div>
+                    </nav>
+
+                    {activeTab === 'live' && (
+                        <div className="animate-in fade-in duration-500">
+                            {currentMatch ? (
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 w-fit px-4 py-2 rounded-full">
+                                        <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>
+                                        <h2 className="text-sm font-bold text-red-400 uppercase tracking-widest">Live Broadcast</h2>
+                                    </div>
+                                    <HlsVideoPlayer src={currentMatch.streamUrl} />
+                                    <div className="bg-slate-900 p-8 rounded-2xl border border-slate-800 text-center shadow-xl">
+                                        <h2 className="text-4xl font-black mb-2">{currentMatch.teamHome} vs {currentMatch.teamAway}</h2>
+                                        <p className="text-slate-400 text-lg">{currentMatch.title}</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-32 bg-slate-900/50 rounded-2xl border border-slate-800 shadow-xl">
+                                    <div className="text-6xl mb-6">⚾️</div>
+                                    <h2 className="text-3xl font-black mb-3">No Live Matches</h2>
+                                    <p className="text-slate-400 text-lg">Check the archive for past games.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'archive' && (
+                        <div className="animate-in fade-in duration-500">
+                            <h2 className="text-3xl font-black mb-8 border-b border-slate-800 pb-4">Match Archive</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {archivedMatches.length === 0 ? <p className="text-slate-500 col-span-full">No archived games available yet.</p> : null}
+                                {archivedMatches.map(match => (
+                                    <div key={match.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-blue-500 hover:shadow-lg transition-all group">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <h3 className="font-bold text-xl leading-tight">{match.teamHome} <br/><span className="text-sm text-slate-500">vs</span><br/> {match.teamAway}</h3>
+                                        </div>
+                                        <p className="text-slate-400 text-sm mb-6">{match.title} • {match.date}</p>
+                                        <button onClick={() => {
+                                            setActiveTab('live');
+                                            const playMatch = {...match, status: 'live'};
+                                            setMatches(matches.map(m => m.id === match.id ? playMatch : (m.status === 'live' ? {...m, status: 'archived'} : m)));
+                                        }} className="w-full bg-blue-600/20 text-blue-400 font-bold hover:bg-blue-600 hover:text-white py-3 rounded-xl transition-all flex justify-center items-center gap-2">
+                                            ▶ Watch Replay
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'admin' && (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
+                            <div className="lg:col-span-1 bg-slate-900 p-6 rounded-2xl border border-slate-800 h-fit shadow-xl">
+                                <h2 className="text-xl font-black mb-6 border-b border-slate-800 pb-4">Add Match Data</h2>
+                                <form onSubmit={handleSaveMatch} className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Match Title</label>
+                                        <input required type="text" placeholder="e.g. BECC Final" className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Home Team</label>
+                                            <input required type="text" className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none" value={formData.teamHome} onChange={e => setFormData({...formData, teamHome: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Away Team</label>
+                                            <input required type="text" className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none" value={formData.teamAway} onChange={e => setFormData({...formData, teamAway: e.target.value})} />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Date</label>
+                                            <input required type="date" className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white [color-scheme:dark] focus:border-blue-500 focus:outline-none" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Status</label>
+                                            <select className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                                                <option value="live">Live Now</option>
+                                                <option value="archived">Archived</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Stream / Video URL</label>
+                                        <input required type="text" className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-blue-500 focus:outline-none" value={formData.streamUrl} onChange={e => setFormData({...formData, streamUrl: e.target.value})} />
+                                    </div>
+                                    <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-900/20 mt-2">Save to Database</button>
+                                </form>
+                            </div>
+                            
+                            <div className="lg:col-span-2">
+                                <h3 className="text-xl font-black mb-6">Database Management</h3>
+                                <div className="space-y-3">
+                                    {matches.map(m => (
+                                        <div key={m.id} className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 p-5 bg-slate-900 rounded-xl border border-slate-800 hover:border-slate-600 transition-colors">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider ${m.status === 'live' ? 'bg-red-500/20 text-red-400' : 'bg-slate-800 text-slate-400'}`}>{m.status}</span>
+                                                    <span className="text-sm font-bold">{m.teamHome} vs {m.teamAway}</span>
+                                                </div>
+                                                <div className="text-xs text-slate-500 font-mono truncate max-w-sm">{m.streamUrl}</div>
+                                            </div>
+                                            <button onClick={() => handleDeleteRequest(m.id)} className="px-4 py-2 bg-slate-950 border border-slate-800 hover:border-red-500 text-red-400 hover:bg-red-500/10 text-sm font-bold rounded-lg transition-all">Delete</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ErrorBoundary><App /></ErrorBoundary>);
+    </script>
+</body>
+</html>                }
                 return () => { if (hls) hls.destroy(); };
             }, [src]);
 
