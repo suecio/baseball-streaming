@@ -168,7 +168,8 @@
     <script>
         // --- Configuration ---
         const ADMIN_PIN = "2026"; // Default Security PIN
-        const VPS_API_URL = "https://stream.deportes.se/api"; // VPS Remote Control Endpoint
+        // Change VPS_API_URL to use the main domain since we're funneling through it now
+        const VPS_API_URL = "https://deportes.se/api"; 
         
         // --- State Management ---
         let matches = [];
