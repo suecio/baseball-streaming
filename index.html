@@ -5,19 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WBSC Europe TV | Portal</title>
     
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- React & ReactDOM (Switched to ultra-reliable Cloudflare CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Babel (Switched to Cloudflare CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.20/babel.min.js"></script>
     
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <!-- HLS.js (Switched to Cloudflare CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-blue-500 selection:text-white">
-    <div id="root"></div>
+    
+    <div id="root">
+        <!-- If React fails to load, the user will see this instead of a black screen -->
+        <div class="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-slate-400">
+            <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <h2 class="text-xl font-bold">Loading WBSC Europe TV...</h2>
+            <p class="text-sm mt-2">If this takes more than 5 seconds, please refresh the page.</p>
+        </div>
+    </div>
 
-    <script type="text/babel">
+    <!-- The data-cfasync="false" flag stops Cloudflare from breaking the code -->
+    <script type="text/babel" data-cfasync="false">
         const { useState, useEffect, useRef } = React;
 
         class ErrorBoundary extends React.Component {
