@@ -86,7 +86,7 @@
             <div id="admin-dashboard" class="hidden grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Automation Form -->
                 <div class="lg:col-span-1 bg-slate-900 p-6 rounded-2xl border border-slate-800 h-fit shadow-xl">
-                    <h2 class="text-xl font-black mb-6 border-b border-slate-800 pb-4">Schedule Broadcast</h2>
+                    <h2 id="form-header" class="text-xl font-black mb-6 border-b border-slate-800 pb-4">Schedule Broadcast</h2>
                     <form id="admin-form" onsubmit="handleSaveMatch(event)" class="space-y-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Match Title</label>
@@ -117,10 +117,19 @@
                         </div>
 
                         <div>
-                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Stream / Video URL</label>
-                            <input id="form-url" required type="text" placeholder="https://stream.deportes.se/..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-blue-500 focus:outline-none">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Playback URL (For Viewers)</label>
+                            <input id="form-url" required type="text" value="https://stream.deportes.se/index.m3u8" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-blue-500 focus:outline-none">
                         </div>
-                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-900/20 mt-2">Save to Schedule</button>
+                        
+                        <div class="pt-4 border-t border-slate-800">
+                            <label class="block text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">Secret Joymo Source URL (For VPS Engine)</label>
+                            <input id="form-source" type="text" placeholder="https://md.p0.jar15.joymo.no/...m3u8" class="w-full bg-blue-950/30 border border-blue-900 rounded-xl px-4 py-3 text-white font-mono text-xs focus:border-blue-500 focus:outline-none">
+                        </div>
+
+                        <div class="flex gap-2 mt-4">
+                            <button type="submit" id="btn-save" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-900/20">Save Match</button>
+                            <button type="button" id="btn-cancel" onclick="resetForm()" class="hidden px-6 bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-xl transition-all">Cancel</button>
+                        </div>
                     </form>
                 </div>
                 
@@ -159,11 +168,13 @@
     <script>
         // --- Configuration ---
         const ADMIN_PIN = "2026"; // Default Security PIN
+        const VPS_API_URL = "https://stream.deportes.se/api"; // VPS Remote Control Endpoint
         
         // --- State Management ---
         let matches = [];
         let currentHls = null;
         let timeCheckInterval = null;
+        let editingId = null; // Tracks if we are editing a match
 
         // Initialize App
         function initApp() {
@@ -376,8 +387,8 @@
             const container = document.getElementById('admin-list');
             
             container.innerHTML = matches.sort((a,b) => new Date(b.startTime) - new Date(a.startTime)).map(m => `
-                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 p-4 bg-slate-900/80 rounded-xl border border-slate-800 hover:border-slate-600 transition-colors">
-                    <div class="min-w-0">
+                <div class="flex flex-col xl:flex-row justify-between xl:items-center gap-4 p-4 bg-slate-900/80 rounded-xl border border-slate-800 hover:border-slate-600 transition-colors">
+                    <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2 mb-1">
                             <span class="text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider 
                                 ${m.status === 'live' ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 
@@ -388,9 +399,21 @@
                             <span class="text-sm font-bold text-white truncate">${m.teamHome} vs ${m.teamAway}</span>
                         </div>
                         <div class="text-xs text-slate-400">Start: ${new Date(m.startTime).toLocaleString()} | End: ${new Date(m.endTime).toLocaleTimeString()}</div>
-                        <div class="text-xs text-slate-600 font-mono truncate max-w-xs mt-1">${m.url}</div>
                     </div>
-                    <button onclick="deleteMatch('${m.id}')" class="px-4 py-2 shrink-0 bg-slate-950 border border-slate-800 hover:border-red-500 text-red-400 hover:bg-red-500/10 text-sm font-bold rounded-lg transition-all">Delete</button>
+                    
+                    <div class="flex flex-wrap gap-2 shrink-0">
+                        ${m.sourceUrl ? `
+                            <button onclick="triggerEngine('start', '${m.sourceUrl}')" class="px-4 py-2 bg-blue-600/20 border border-blue-500 hover:bg-blue-600 text-blue-400 hover:text-white text-sm font-bold rounded-lg transition-all flex items-center gap-1">
+                                ▶ Start Engine
+                            </button>
+                            <button onclick="triggerEngine('stop')" class="px-4 py-2 bg-slate-800 border border-slate-700 hover:bg-red-600 hover:border-red-500 text-slate-400 hover:text-white text-sm font-bold rounded-lg transition-all flex items-center gap-1">
+                                ⏹ Stop Engine
+                            </button>
+                        ` : ''}
+                        <div class="w-px h-8 bg-slate-800 mx-2 hidden sm:block"></div>
+                        <button onclick="editMatch('${m.id}')" class="px-4 py-2 bg-slate-950 border border-slate-800 hover:border-blue-500 text-slate-400 hover:text-white hover:bg-blue-500/10 text-sm font-bold rounded-lg transition-all">Edit</button>
+                        <button onclick="deleteMatch('${m.id}')" class="px-4 py-2 bg-slate-950 border border-slate-800 hover:border-red-500 text-red-400 hover:bg-red-500/10 text-sm font-bold rounded-lg transition-all">Delete</button>
+                    </div>
                 </div>
             `).join('');
             
@@ -403,38 +426,100 @@
         function handleSaveMatch(e) {
             e.preventDefault();
             
-            const newMatch = {
-                id: Date.now().toString(),
+            const matchData = {
                 title: document.getElementById('form-title').value,
                 teamHome: document.getElementById('form-home').value,
                 teamAway: document.getElementById('form-away').value,
                 startTime: document.getElementById('form-start').value,
                 endTime: document.getElementById('form-end').value,
                 url: document.getElementById('form-url').value,
-                status: 'upcoming' // Will be calculated immediately
+                sourceUrl: document.getElementById('form-source').value,
+                status: 'upcoming' 
             };
 
-            matches.push(newMatch);
+            if (editingId) {
+                // Update existing match
+                matches = matches.map(m => m.id === editingId ? { ...m, ...matchData } : m);
+                showToast("Match updated successfully!");
+            } else {
+                // Create new match
+                matchData.id = Date.now().toString();
+                matches.push(matchData);
+                showToast("Match scheduled successfully!");
+            }
+
             saveDb();
+            resetForm();
+            calculateStatuses();
+        }
+
+        function editMatch(id) {
+            const match = matches.find(m => m.id === id);
+            if(!match) return;
+
+            editingId = match.id;
+            document.getElementById('form-header').innerText = "Edit Broadcast";
+            document.getElementById('btn-save').innerText = "Update Match";
+            document.getElementById('btn-cancel').classList.remove('hidden');
+
+            document.getElementById('form-title').value = match.title;
+            document.getElementById('form-home').value = match.teamHome;
+            document.getElementById('form-away').value = match.teamAway;
+            document.getElementById('form-start').value = match.startTime;
+            document.getElementById('form-end').value = match.endTime;
+            document.getElementById('form-url').value = match.url;
+            document.getElementById('form-source').value = match.sourceUrl || '';
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetForm() {
+            editingId = null;
+            document.getElementById('form-header').innerText = "Schedule Broadcast";
+            document.getElementById('btn-save').innerText = "Save Match";
+            document.getElementById('btn-cancel').classList.add('hidden');
             
-            // Clear text inputs (leave dates alone for convenience)
             document.getElementById('form-title').value = '';
             document.getElementById('form-home').value = '';
             document.getElementById('form-away').value = '';
+            document.getElementById('form-source').value = '';
             
-            // Force recalculation to set correct status and render
-            calculateStatuses();
-            
-            // Custom toast notification instead of alert()
-            showToast("Match scheduled successfully!");
+            const now = new Date();
+            const end = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+            document.getElementById('form-start').value = toLocalISOString(now);
+            document.getElementById('form-end').value = toLocalISOString(end);
         }
 
         function deleteMatch(id) {
-            // Custom confirmation dialog replacement
             if(window.confirm("Permanently delete this match from the database?")) {
                 matches = matches.filter(m => m.id !== id);
                 saveDb();
                 calculateStatuses();
+            }
+        }
+
+        // --- VPS Remote Control ---
+        async function triggerEngine(action, sourceUrl = null) {
+            try {
+                showToast(`Sending ${action} command to VPS...`);
+                
+                const body = action === 'start' ? JSON.stringify({ source_url: sourceUrl }) : null;
+                
+                const response = await fetch(`${VPS_API_URL}/${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: body
+                });
+                
+                const result = await response.json();
+                if(response.ok) {
+                    showToast(`✅ VPS: ${result.message}`);
+                } else {
+                    showToast(`❌ VPS Error: ${result.error}`);
+                }
+            } catch (err) {
+                showToast("❌ Could not connect to VPS Engine. Is the Listener running?");
+                console.error(err);
             }
         }
 
