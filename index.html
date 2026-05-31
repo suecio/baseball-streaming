@@ -12,253 +12,394 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
 
     <style>
-        /* Custom modal animation */
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        /* Custom animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes overlayFade { from { opacity: 0; backdrop-filter: blur(0px); } to { opacity: 1; backdrop-filter: blur(12px); } }
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .modal-fade { animation: overlayFade 0.3s ease-out forwards; }
+        
+        /* Hide scrollbar when modal is open */
+        body.modal-open { overflow: hidden; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-blue-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-blue-500 selection:text-white pb-12">
 
-    <div class="max-w-6xl mx-auto px-4 py-8">
-        
-        <!-- Navigation -->
+    <div class="max-w-7xl mx-auto px-4 py-6">
         <nav class="flex flex-col md:flex-row justify-between items-center bg-slate-900 border border-slate-800 p-4 rounded-2xl mb-8 shadow-xl">
             <div class="flex items-center gap-3 mb-4 md:mb-0">
                 <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold text-xl shadow-lg shadow-blue-500/50">B</div>
                 <h1 class="text-2xl font-black tracking-tight text-white">WBSC Europe TV</h1>
             </div>
             <div class="flex gap-2 bg-slate-950 p-1 rounded-xl">
-                <button id="tab-live" onclick="switchTab('live')" class="px-5 py-2 rounded-lg font-bold transition-all bg-blue-600 text-white shadow">Live Now</button>
-                <button id="tab-archive" onclick="switchTab('archive')" class="px-5 py-2 rounded-lg font-bold transition-all text-slate-400 hover:text-white">Archive</button>
-                <button id="tab-admin" onclick="switchTab('admin')" class="px-5 py-2 rounded-lg font-bold transition-all text-slate-400 hover:text-white">Admin</button>
+                <button id="tab-home" onclick="switchTab('home')" class="px-6 py-2 rounded-lg font-bold transition-all bg-blue-600 text-white shadow">Home</button>
+                <button id="tab-admin" onclick="switchTab('admin')" class="px-6 py-2 rounded-lg font-bold transition-all text-slate-400 hover:text-white flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Admin
+                </button>
             </div>
         </nav>
 
-        <!-- LIVE VIEW -->
-        <div id="view-live" class="fade-in block">
-            <div id="live-content">
-                <!-- Injected via JS -->
-            </div>
-        </div>
-
-        <!-- ARCHIVE VIEW -->
-        <div id="view-archive" class="fade-in hidden">
-            <h2 class="text-3xl font-black mb-8 border-b border-slate-800 pb-4">Match Archive</h2>
-            <div id="archive-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Injected via JS -->
-            </div>
-        </div>
-
-        <!-- ADMIN VIEW -->
-        <div id="view-admin" class="fade-in hidden grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Add Match Form -->
-            <div class="lg:col-span-1 bg-slate-900 p-6 rounded-2xl border border-slate-800 h-fit shadow-xl">
-                <h2 class="text-xl font-black mb-6 border-b border-slate-800 pb-4">Add Match Data</h2>
-                <form id="admin-form" onsubmit="handleSaveMatch(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Match Title</label>
-                        <input id="form-title" required type="text" placeholder="e.g. BECC Final" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Home Team</label>
-                            <input id="form-home" required type="text" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Away Team</label>
-                            <input id="form-away" required type="text" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Date</label>
-                            <input id="form-date" required type="date" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white [color-scheme:dark] focus:border-blue-500 focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Status</label>
-                            <select id="form-status" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
-                                <option value="live">Live Now</option>
-                                <option value="archived">Archived</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Stream / Video URL</label>
-                        <input id="form-url" required type="text" placeholder="https://stream.deportes.se/..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-blue-500 focus:outline-none">
-                    </div>
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-900/20 mt-2">Save to Database</button>
-                </form>
-            </div>
+        <div id="view-home" class="fade-in block space-y-12">
             
-            <!-- Database List -->
-            <div class="lg:col-span-2">
-                <h3 class="text-xl font-black mb-6">Database Management</h3>
-                <div id="admin-list" class="space-y-3">
+            <!-- Live Section -->
+            <section>
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>
+                    <h2 class="text-2xl font-black text-white tracking-tight">Live Now</h2>
+                </div>
+                <div id="grid-live" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                     <!-- Injected via JS -->
+                </div>
+            </section>
+
+            <!-- Archive Section -->
+            <section>
+                <h2 class="text-2xl font-black text-slate-300 mb-6 border-b border-slate-800 pb-4">Recent Archives</h2>
+                <div id="grid-archive" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Injected via JS -->
+                </div>
+            </section>
+            
+            <!-- Upcoming Section -->
+            <section id="section-upcoming" class="hidden">
+                <h2 class="text-2xl font-black text-slate-500 mb-6 border-b border-slate-800 pb-4">Upcoming Matches</h2>
+                <div id="grid-upcoming" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 opacity-70">
+                    <!-- Injected via JS -->
+                </div>
+            </section>
+        </div>
+
+        <div id="view-admin" class="fade-in hidden">
+            
+            <!-- Lock Screen -->
+            <div id="admin-lock" class="max-w-md mx-auto bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-xl text-center mt-12">
+                <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                </div>
+                <h2 class="text-2xl font-black mb-2">Admin Access</h2>
+                <p class="text-slate-400 mb-6 text-sm">Enter the PIN code to manage broadcasts.</p>
+                <input id="pin-input" type="password" placeholder="••••" class="w-full text-center text-2xl tracking-[0.5em] bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none mb-4" onkeypress="if(event.key === 'Enter') unlockAdmin()">
+                <button onclick="unlockAdmin()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all">Unlock</button>
+                <p id="pin-error" class="text-red-400 text-sm mt-3 hidden">Incorrect PIN.</p>
+            </div>
+
+            <!-- Dashboard -->
+            <div id="admin-dashboard" class="hidden grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Automation Form -->
+                <div class="lg:col-span-1 bg-slate-900 p-6 rounded-2xl border border-slate-800 h-fit shadow-xl">
+                    <h2 class="text-xl font-black mb-6 border-b border-slate-800 pb-4">Schedule Broadcast</h2>
+                    <form id="admin-form" onsubmit="handleSaveMatch(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Match Title</label>
+                            <input id="form-title" required type="text" placeholder="e.g. BECC Final" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Home Team</label>
+                                <input id="form-home" required type="text" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Away Team</label>
+                                <input id="form-away" required type="text" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
+                            </div>
+                        </div>
+                        
+                        <!-- Automated Scheduling -->
+                        <div class="bg-slate-950/50 p-4 rounded-xl border border-slate-800 space-y-4">
+                            <p class="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wider">Automated Status Times</p>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Goes LIVE at:</label>
+                                <input id="form-start" required type="datetime-local" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white [color-scheme:dark] focus:border-blue-500 focus:outline-none text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Moves to ARCHIVE at:</label>
+                                <input id="form-end" required type="datetime-local" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white [color-scheme:dark] focus:border-blue-500 focus:outline-none text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Stream / Video URL</label>
+                            <input id="form-url" required type="text" placeholder="https://stream.deportes.se/..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-900/20 mt-2">Save to Schedule</button>
+                    </form>
+                </div>
+                
+                <!-- Database List -->
+                <div class="lg:col-span-2">
+                    <h3 class="text-xl font-black mb-6">Match Database</h3>
+                    <div id="admin-list" class="space-y-3">
+                        <!-- Injected via JS -->
+                    </div>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- Application Logic (Vanilla JS) -->
+    <div id="player-modal" class="fixed inset-0 z-50 hidden modal-fade bg-slate-950/90 items-center justify-center p-4 sm:p-8">
+        <div class="bg-black border border-slate-800 rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden relative flex flex-col">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center p-4 bg-slate-900/80 absolute top-0 left-0 right-0 z-10 opacity-0 hover:opacity-100 transition-opacity">
+                <div id="modal-title" class="font-bold text-white text-lg drop-shadow-md">Match Title</div>
+                <button onclick="closePlayer()" class="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition-colors shadow-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <!-- Video Container -->
+            <div class="relative w-full aspect-video bg-black">
+                <video id="modal-video-player" controls class="w-full h-full object-contain" playsInline></video>
+            </div>
+            <!-- Modal Footer Controls -->
+            <div class="p-4 bg-slate-900 flex justify-center border-t border-slate-800">
+                <button onclick="closePlayer()" class="px-8 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold transition-all text-slate-300 hover:text-white">Close Player</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // --- Configuration ---
+        const ADMIN_PIN = "2026"; // Default Security PIN
+        
         // --- State Management ---
         let matches = [];
         let currentHls = null;
+        let timeCheckInterval = null;
 
-        // Initialize Database
+        // Initialize App
         function initApp() {
-            const saved = localStorage.getItem('wbsc_vanilla_db');
+            const saved = localStorage.getItem('wbsc_v8_db');
             if (saved) {
                 matches = JSON.parse(saved);
-            } else {
-                const defaultMatch = {
-                    id: Date.now().toString(),
-                    title: "European Cup Baseball",
-                    teamHome: "Home Team",
-                    teamAway: "Away Team",
-                    date: new Date().toISOString().split('T')[0],
-                    status: "live",
-                    url: "https://deportes.se/live_stream/index.m3u8"
-                };
-                matches = [defaultMatch];
-                saveDb();
             }
             
-            // Set default date in form
-            document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
+            // Set default dates in form (Start = Now, End = Now + 3 hours)
+            const now = new Date();
+            const end = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+            document.getElementById('form-start').value = toLocalISOString(now);
+            document.getElementById('form-end').value = toLocalISOString(end);
             
-            // Initial Render
-            renderLive();
-            renderArchive();
-            renderAdmin();
+            // Run initial status check and render
+            calculateStatuses();
+            
+            // Start the Chron Job (Checks time every 30 seconds to automate status changes)
+            timeCheckInterval = setInterval(calculateStatuses, 30000);
+        }
+
+        // Fix timezone offset for datetime-local inputs
+        function toLocalISOString(date) {
+            const tzOffset = date.getTimezoneOffset() * 60000;
+            return (new Date(date - tzOffset)).toISOString().slice(0, 16);
         }
 
         function saveDb() {
-            localStorage.setItem('wbsc_vanilla_db', JSON.stringify(matches));
+            localStorage.setItem('wbsc_v8_db', JSON.stringify(matches));
+        }
+
+        // --- Core Automation Engine ---
+        function calculateStatuses() {
+            const nowTime = new Date().getTime();
+            let stateChanged = false;
+
+            matches = matches.map(m => {
+                const startTime = new Date(m.startTime).getTime();
+                const endTime = new Date(m.endTime).getTime();
+                let calculatedStatus = 'upcoming';
+
+                if (nowTime >= startTime && nowTime <= endTime) {
+                    calculatedStatus = 'live';
+                } else if (nowTime > endTime) {
+                    calculatedStatus = 'archive';
+                }
+
+                if (m.status !== calculatedStatus) {
+                    stateChanged = true;
+                    return { ...m, status: calculatedStatus };
+                }
+                return m;
+            });
+
+            // If a status automatically switched (e.g., game ended), re-render and save
+            if (stateChanged || matches.length >= 0) {
+                saveDb();
+                renderHome();
+                renderAdmin();
+            }
         }
 
         // --- UI Navigation ---
         function switchTab(tabName) {
-            // Update buttons
-            ['live', 'archive', 'admin'].forEach(tab => {
+            // Update Tab Buttons
+            ['home', 'admin'].forEach(tab => {
                 const btn = document.getElementById(`tab-${tab}`);
                 if (tab === tabName) {
-                    btn.className = "px-5 py-2 rounded-lg font-bold transition-all bg-blue-600 text-white shadow";
-                    if(tab === 'admin') btn.className = "px-5 py-2 rounded-lg font-bold transition-all bg-emerald-600 text-white shadow";
+                    btn.className = "px-6 py-2 rounded-lg font-bold transition-all bg-blue-600 text-white shadow flex items-center gap-2";
                 } else {
-                    btn.className = "px-5 py-2 rounded-lg font-bold transition-all text-slate-400 hover:text-white";
+                    btn.className = "px-6 py-2 rounded-lg font-bold transition-all text-slate-400 hover:text-white flex items-center gap-2";
                 }
             });
 
-            // Update Views
-            document.getElementById('view-live').style.display = tabName === 'live' ? 'block' : 'none';
-            document.getElementById('view-archive').style.display = tabName === 'archive' ? 'block' : 'none';
-            document.getElementById('view-admin').style.display = tabName === 'admin' ? 'grid' : 'none';
-
-            // Re-render live if switching back to it
-            if (tabName === 'live') renderLive();
+            // Toggle Views
+            document.getElementById('view-home').style.display = tabName === 'home' ? 'block' : 'none';
+            document.getElementById('view-admin').style.display = tabName === 'admin' ? 'block' : 'none';
         }
 
-        // --- Video Player Logic ---
-        function initPlayer(videoElementId, src) {
-            const video = document.getElementById(videoElementId);
-            if (!video) return;
-
-            if (currentHls) {
-                currentHls.destroy();
+        // --- Security ---
+        function unlockAdmin() {
+            const input = document.getElementById('pin-input').value;
+            if (input === ADMIN_PIN) {
+                document.getElementById('admin-lock').style.display = 'none';
+                document.getElementById('admin-dashboard').style.display = 'grid';
+                document.getElementById('pin-input').value = '';
+            } else {
+                const err = document.getElementById('pin-error');
+                err.style.display = 'block';
+                setTimeout(() => err.style.display = 'none', 3000);
             }
+        }
+
+        // --- Player Modal Logic ---
+        function openPlayer(matchId) {
+            const match = matches.find(m => m.id === matchId);
+            if(!match) return;
+
+            const modal = document.getElementById('player-modal');
+            const video = document.getElementById('modal-video-player');
+            document.getElementById('modal-title').innerText = `${match.teamHome} vs ${match.teamAway}`;
+            
+            // Show Modal and stop background scrolling
+            modal.style.display = 'flex';
+            document.body.classList.add('modal-open');
+
+            // Initialize HLS
+            if (currentHls) currentHls.destroy();
 
             if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                // Native Safari support
-                video.src = src;
-                video.play().catch(e => console.log("Autoplay blocked"));
+                // Safari native HLS
+                video.src = match.url;
+                video.play().catch(() => console.log("Autoplay blocked"));
             } else if (window.Hls && window.Hls.isSupported()) {
-                // HLS.js fallback for Chrome/Firefox
+                // HLS.js for Chrome/Firefox
                 currentHls = new window.Hls({ capLevelToPlayerSize: true });
-                currentHls.loadSource(src);
+                currentHls.loadSource(match.url);
                 currentHls.attachMedia(video);
                 currentHls.on(window.Hls.Events.MANIFEST_PARSED, function() {
-                    video.play().catch(e => console.log("Autoplay blocked"));
+                    video.play().catch(() => console.log("Autoplay blocked"));
                 });
             }
         }
 
-        // --- Rendering Functions ---
-        function renderLive() {
-            const container = document.getElementById('live-content');
-            const liveMatch = matches.find(m => m.status === 'live');
-
-            if (liveMatch) {
-                container.innerHTML = `
-                    <div class="space-y-6">
-                        <div class="flex items-center gap-3 bg-red-500/10 border border-red-500/20 w-fit px-4 py-2 rounded-full">
-                            <span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>
-                            <h2 class="text-sm font-bold text-red-400 uppercase tracking-widest">Live Broadcast</h2>
-                        </div>
-                        <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-800">
-                            <video id="live-video-player" controls class="w-full h-full object-contain" playsInline></video>
-                        </div>
-                        <div class="bg-slate-900 p-8 rounded-2xl border border-slate-800 text-center shadow-xl">
-                            <h2 class="text-4xl font-black mb-2">${liveMatch.teamHome} vs ${liveMatch.teamAway}</h2>
-                            <p class="text-slate-400 text-lg">${liveMatch.title}</p>
-                        </div>
-                    </div>
-                `;
-                // Start video after DOM injects
-                setTimeout(() => initPlayer('live-video-player', liveMatch.url), 100);
-            } else {
-                container.innerHTML = `
-                    <div class="text-center py-32 bg-slate-900/50 rounded-2xl border border-slate-800 shadow-xl">
-                        <div class="text-6xl mb-6">⚾️</div>
-                        <h2 class="text-3xl font-black mb-3">No Live Matches</h2>
-                        <p class="text-slate-400 text-lg">Check the archive for past games.</p>
-                    </div>
-                `;
-            }
+        function closePlayer() {
+            const modal = document.getElementById('player-modal');
+            const video = document.getElementById('modal-video-player');
+            
+            // Hide modal and restore scroll
+            modal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+            
+            // Kill stream to stop audio
+            if (currentHls) currentHls.destroy();
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
         }
 
-        function renderArchive() {
-            const container = document.getElementById('archive-grid');
-            const archived = matches.filter(m => m.status === 'archived');
+        // --- Rendering Engine ---
+        function renderHome() {
+            const liveGrid = document.getElementById('grid-live');
+            const archiveGrid = document.getElementById('grid-archive');
+            const upcomingGrid = document.getElementById('grid-upcoming');
+            const upcomingSection = document.getElementById('section-upcoming');
 
-            if (archived.length === 0) {
-                container.innerHTML = `<p class="text-slate-500 col-span-full">No archived games available yet.</p>`;
-                return;
+            const liveMatches = matches.filter(m => m.status === 'live');
+            const archiveMatches = matches.filter(m => m.status === 'archive').sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+            const upcomingMatches = matches.filter(m => m.status === 'upcoming');
+
+            // Render Live
+            if (liveMatches.length > 0) {
+                liveGrid.innerHTML = liveMatches.map(m => `
+                    <div onclick="openPlayer('${m.id}')" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-red-500 hover:shadow-2xl hover:shadow-red-900/20 transition-all cursor-pointer group">
+                        <div class="aspect-video bg-black relative flex items-center justify-center">
+                            <div class="absolute inset-0 bg-[url('https://placehold.co/800x450/1e293b/334155?text=Live+Broadcast')] bg-cover opacity-30 group-hover:opacity-50 transition-opacity"></div>
+                            <div class="w-16 h-16 bg-red-600/90 rounded-full flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform shadow-lg z-10">
+                                <svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            </div>
+                            <div class="absolute top-4 left-4 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest z-10 shadow-lg">Live Now</div>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="text-2xl font-black mb-1 leading-tight">${m.teamHome} <span class="text-slate-500 text-lg mx-1">vs</span> ${m.teamAway}</h3>
+                            <p class="text-slate-400 font-medium">${m.title}</p>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                liveGrid.innerHTML = `
+                    <div class="col-span-full bg-slate-900/50 border border-slate-800 border-dashed rounded-2xl p-12 text-center">
+                        <p class="text-slate-500 font-medium">No live broadcasts at the moment.</p>
+                    </div>
+                `;
             }
 
-            container.innerHTML = archived.map(match => `
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-blue-500 hover:shadow-lg transition-all group">
-                    <div class="flex justify-between items-start mb-4">
-                        <h3 class="font-bold text-xl leading-tight">${match.teamHome} <br><span class="text-sm text-slate-500">vs</span><br> ${match.teamAway}</h3>
+            // Render Archive
+            if (archiveMatches.length > 0) {
+                archiveGrid.innerHTML = archiveMatches.map(m => `
+                    <div onclick="openPlayer('${m.id}')" class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-blue-500 hover:shadow-xl hover:shadow-blue-900/20 transition-all cursor-pointer group">
+                        <div class="p-5">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded w-fit">${new Date(m.startTime).toLocaleDateString()}</div>
+                                <svg class="w-8 h-8 text-slate-700 group-hover:text-blue-500 transition-colors" fill="currentColor" viewBox="0 0 24 24"><path d="M10 16.5l6-4.5-6-4.5v9zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                            </div>
+                            <h3 class="text-lg font-bold mb-1 leading-tight">${m.teamHome} vs ${m.teamAway}</h3>
+                            <p class="text-slate-400 text-sm truncate">${m.title}</p>
+                        </div>
                     </div>
-                    <p class="text-slate-400 text-sm mb-6">${match.title} • ${match.date}</p>
-                    <button onclick="playArchived('${match.id}')" class="w-full bg-blue-600/20 text-blue-400 font-bold hover:bg-blue-600 hover:text-white py-3 rounded-xl transition-all flex justify-center items-center gap-2">
-                        ▶ Watch Replay
-                    </button>
-                </div>
-            `).join('');
+                `).join('');
+            } else {
+                archiveGrid.innerHTML = `<p class="text-slate-500 col-span-full">No recent archives.</p>`;
+            }
+
+            // Render Upcoming
+            if (upcomingMatches.length > 0) {
+                upcomingSection.style.display = 'block';
+                upcomingGrid.innerHTML = upcomingMatches.map(m => `
+                    <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-5 border-dashed">
+                        <div class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Starts: ${new Date(m.startTime).toLocaleString()}</div>
+                        <h3 class="text-lg font-bold text-slate-300 leading-tight">${m.teamHome} vs ${m.teamAway}</h3>
+                        <p class="text-slate-500 text-sm truncate">${m.title}</p>
+                    </div>
+                `).join('');
+            } else {
+                upcomingSection.style.display = 'none';
+            }
         }
 
         function renderAdmin() {
             const container = document.getElementById('admin-list');
             
-            container.innerHTML = matches.map(m => `
-                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 p-5 bg-slate-900 rounded-xl border border-slate-800 hover:border-slate-600 transition-colors">
-                    <div>
+            container.innerHTML = matches.sort((a,b) => new Date(b.startTime) - new Date(a.startTime)).map(m => `
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 p-4 bg-slate-900/80 rounded-xl border border-slate-800 hover:border-slate-600 transition-colors">
+                    <div class="min-w-0">
                         <div class="flex items-center gap-2 mb-1">
-                            <span class="text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider ${m.status === 'live' ? 'bg-red-500/20 text-red-400' : 'bg-slate-800 text-slate-400'}">${m.status}</span>
-                            <span class="text-sm font-bold">${m.teamHome} vs ${m.teamAway}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider 
+                                ${m.status === 'live' ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 
+                                  m.status === 'archive' ? 'bg-slate-800 text-slate-400 border border-slate-700' : 
+                                  'bg-blue-500/20 text-blue-400 border border-blue-500/20'}">
+                                ${m.status}
+                            </span>
+                            <span class="text-sm font-bold text-white truncate">${m.teamHome} vs ${m.teamAway}</span>
                         </div>
-                        <div class="text-xs text-slate-500 font-mono truncate max-w-sm">${m.url}</div>
+                        <div class="text-xs text-slate-400">Start: ${new Date(m.startTime).toLocaleString()} | End: ${new Date(m.endTime).toLocaleTimeString()}</div>
+                        <div class="text-xs text-slate-600 font-mono truncate max-w-xs mt-1">${m.url}</div>
                     </div>
-                    <button onclick="deleteMatch('${m.id}')" class="px-4 py-2 bg-slate-950 border border-slate-800 hover:border-red-500 text-red-400 hover:bg-red-500/10 text-sm font-bold rounded-lg transition-all">Delete</button>
+                    <button onclick="deleteMatch('${m.id}')" class="px-4 py-2 shrink-0 bg-slate-950 border border-slate-800 hover:border-red-500 text-red-400 hover:bg-red-500/10 text-sm font-bold rounded-lg transition-all">Delete</button>
                 </div>
             `).join('');
+            
+            if(matches.length === 0) {
+                 container.innerHTML = `<p class="text-slate-500 text-center py-8">Database is empty.</p>`;
+            }
         }
 
-        // --- Actions ---
+        // --- Data Actions ---
         function handleSaveMatch(e) {
             e.preventDefault();
             
@@ -267,55 +408,50 @@
                 title: document.getElementById('form-title').value,
                 teamHome: document.getElementById('form-home').value,
                 teamAway: document.getElementById('form-away').value,
-                date: document.getElementById('form-date').value,
-                status: document.getElementById('form-status').value,
+                startTime: document.getElementById('form-start').value,
+                endTime: document.getElementById('form-end').value,
                 url: document.getElementById('form-url').value,
+                status: 'upcoming' // Will be calculated immediately
             };
 
-            // If new is live, archive existing lives
-            if (newMatch.status === 'live') {
-                matches = matches.map(m => m.status === 'live' ? { ...m, status: 'archived' } : m);
-            }
-
-            matches.unshift(newMatch); // Add to beginning
+            matches.push(newMatch);
             saveDb();
             
-            // Clear inputs
+            // Clear text inputs (leave dates alone for convenience)
             document.getElementById('form-title').value = '';
             document.getElementById('form-home').value = '';
             document.getElementById('form-away').value = '';
             
-            // Update UI
-            renderLive();
-            renderArchive();
-            renderAdmin();
-            alert("Match saved to database!");
+            // Force recalculation to set correct status and render
+            calculateStatuses();
+            
+            // Custom toast notification instead of alert()
+            showToast("Match scheduled successfully!");
         }
 
         function deleteMatch(id) {
-            if(confirm("Permanently delete this match?")) {
+            // Custom confirmation dialog replacement
+            if(window.confirm("Permanently delete this match from the database?")) {
                 matches = matches.filter(m => m.id !== id);
                 saveDb();
-                renderLive();
-                renderArchive();
-                renderAdmin();
+                calculateStatuses();
             }
         }
 
-        function playArchived(id) {
-            // Force this match to be live so it plays in the main viewer
-            matches = matches.map(m => {
-                if(m.id === id) return { ...m, status: 'live' };
-                if(m.status === 'live') return { ...m, status: 'archived' };
-                return m;
-            });
-            saveDb();
-            renderArchive();
-            renderAdmin();
-            switchTab('live');
+        // Custom brief notification
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = "fixed bottom-4 right-4 bg-emerald-600 text-white px-6 py-3 rounded-lg shadow-2xl font-bold fade-in z-50";
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
         }
 
-        // Start the App
+        // Start App
         window.onload = initApp;
     </script>
 </body>
