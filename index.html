@@ -5,31 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WBSC Europe TV | Portal</title>
     
+    <!-- CRASH REPORTER: Catches any silent errors and displays them on screen -->
+    <script>
+        window.addEventListener('error', function(event) {
+            const root = document.getElementById('root');
+            if(root) {
+                root.innerHTML = `
+                    <div style="padding: 2rem; background-color: #450a0a; color: #fca5a5; min-height: 100vh; font-family: monospace;">
+                        <h1 style="font-size: 2rem; margin-bottom: 1rem; color: #ef4444;">System Crash Detected</h1>
+                        <p><strong>Error Message:</strong> ${event.message}</p>
+                        <p><strong>File:</strong> ${event.filename}</p>
+                        <p><strong>Line Number:</strong> ${event.lineno}</p>
+                        <p style="margin-top: 2rem; color: #9ca3af;">Please share a screenshot of this red screen so we can fix the exact line of code!</p>
+                    </div>
+                `;
+            }
+        });
+    </script>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- React & ReactDOM (Switched to ultra-reliable Cloudflare CDN) -->
+    <!-- React & ReactDOM -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     
-    <!-- Babel (Switched to Cloudflare CDN) -->
+    <!-- Babel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.20/babel.min.js"></script>
     
-    <!-- HLS.js (Switched to Cloudflare CDN) -->
+    <!-- HLS.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-blue-500 selection:text-white">
     
     <div id="root">
-        <!-- If React fails to load, the user will see this instead of a black screen -->
         <div class="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-slate-400">
             <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
             <h2 class="text-xl font-bold">Loading WBSC Europe TV...</h2>
-            <p class="text-sm mt-2">If this takes more than 5 seconds, please refresh the page.</p>
         </div>
     </div>
 
-    <!-- The data-cfasync="false" flag stops Cloudflare from breaking the code -->
+    <!-- App Logic -->
     <script type="text/babel" data-cfasync="false">
         const { useState, useEffect, useRef } = React;
 
@@ -43,9 +59,8 @@
                 if (this.state.hasError) {
                     return (
                         <div className="p-8 max-w-2xl mx-auto mt-20 bg-red-950 border border-red-500 rounded-xl shadow-2xl">
-                            <h1 className="text-2xl font-bold text-red-500 mb-4">Application Error</h1>
+                            <h1 className="text-2xl font-bold text-red-500 mb-4">React Render Error</h1>
                             <p className="text-red-200 font-mono text-sm">{this.state.error.toString()}</p>
-                            <p className="text-slate-400 mt-4 text-sm">Please refresh the page or clear your browser cache.</p>
                         </div>
                     );
                 }
@@ -99,7 +114,6 @@
 
             return (
                 <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-800">
-                    {/* Explicitly closed tags below prevent Cloudflare from breaking the JSX */}
                     <video ref={videoRef} controls className="w-full h-full object-contain" playsInline></video>
                 </div>
             );
@@ -110,12 +124,12 @@
             const [matches, setMatches] = useState([]);
             const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info', onConfirm: () => {}, onCancel: null });
             const [formData, setFormData] = useState({
-                title: '', teamHome: '', teamAway: '', date: new Date().toISOString().split('T')[0], status: 'live', streamUrl: 'https://deportes.se/live_stream/index.m3u8'
+                title: '', teamHome: '', teamAway: '', date: new Date().toISOString().split('T')[0], status: 'live', streamUrl: 'https://stream.deportes.se/live_stream/index.m3u8'
             });
 
             useEffect(() => {
                 try {
-                    const saved = localStorage.getItem('wbsc_portal_data_v4');
+                    const saved = localStorage.getItem('wbsc_portal_data_v6');
                     if (saved) {
                         setMatches(JSON.parse(saved));
                     } else {
@@ -126,10 +140,10 @@
                             teamAway: "Away Team",
                             date: new Date().toISOString().split('T')[0],
                             status: "live",
-                            streamUrl: "https://deportes.se/live_stream/index.m3u8"
+                            streamUrl: "https://stream.deportes.se/live_stream/index.m3u8"
                         };
                         setMatches([defaultMatch]);
-                        localStorage.setItem('wbsc_portal_data_v4', JSON.stringify([defaultMatch]));
+                        localStorage.setItem('wbsc_portal_data_v6', JSON.stringify([defaultMatch]));
                     }
                 } catch (e) {
                     console.error("Local storage error:", e);
@@ -142,16 +156,14 @@
                 
                 let updatedMatches = [...matches];
                 if (newMatch.status === 'live') {
-                    /* Turn other live matches to archived */
                     updatedMatches = updatedMatches.map(m => m.status === 'live' ? { ...m, status: 'archived' } : m);
                 }
                 
                 const finalMatches = [newMatch, ...updatedMatches];
                 setMatches(finalMatches);
-                localStorage.setItem('wbsc_portal_data_v4', JSON.stringify(finalMatches));
+                localStorage.setItem('wbsc_portal_data_v6', JSON.stringify(finalMatches));
                 setFormData({ ...formData, title: '', teamHome: '', teamAway: '' });
                 
-                /* Show success modal */
                 setModalConfig({
                     isOpen: true,
                     title: 'Success',
@@ -166,13 +178,13 @@
                 setModalConfig({
                     isOpen: true,
                     title: 'Delete Match',
-                    message: 'Are you sure you want to permanently delete this match from the database?',
+                    message: 'Are you sure you want to permanently delete this match?',
                     type: 'danger',
                     onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
                     onConfirm: () => {
                         const updated = matches.filter(m => m.id !== id);
                         setMatches(updated);
-                        localStorage.setItem('wbsc_portal_data_v4', JSON.stringify(updated));
+                        localStorage.setItem('wbsc_portal_data_v6', JSON.stringify(updated));
                         setModalConfig(prev => ({ ...prev, isOpen: false }));
                     }
                 });
@@ -197,7 +209,6 @@
                         </div>
                     </nav>
 
-                    {}
                     {activeTab === 'live' && (
                         <div className="animate-in fade-in duration-500">
                             {currentMatch ? (
@@ -246,7 +257,6 @@
                         </div>
                     )}
 
-                    {}
                     {activeTab === 'admin' && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
                             <div className="lg:col-span-1 bg-slate-900 p-6 rounded-2xl border border-slate-800 h-fit shadow-xl">
